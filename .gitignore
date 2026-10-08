@@ -1,0 +1,46 @@
+# Dependencies and generated build output at any project depth.
+node_modules/
+.next/
+dist/
+out/
+coverage/
+*.tsbuildinfo
+
+# Local identity, database persistence, and deployment-account state.
+.runtime/
+.emulator-data/
+.vercel/
+.firebase/
+.gcloud/
+google-cloud-auth/
+google-cloud-sdk/
+
+# Private environment files; template examples contain placeholders only.
+.env
+.env.*
+.env-*
+!**/.env.example
+!**/.env.*.example
+
+# ADC, service-account keys, and other private credential material.
+application_default_credentials.json
+adc.json
+personalADC*
+*credential*.json
+*service-account*.json
+*service_account*.json
+*serviceAccount*.json
+*adminsdk*.json
+*private-key*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local logs and editor/system temporary files.
+*.log
+*.log.*
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db

@@ -1,0 +1,47 @@
+{
+  "name": "eden-salon-demo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:cloud": "node scripts/cloud-dev.mjs",
+    "firebase:login": "node scripts/google-login.mjs",
+    "seed:cloud": "node --env-file=.env.cloud scripts/seed-cloud.mjs",
+    "dev:web": "next dev web --port 3100 --hostname 127.0.0.1",
+    "dev:api": "npm run build:api && node --watch api/dist/main.js",
+    "emulator": "node scripts/firestore.mjs",
+    "check:booking": "node api/test/integration.mjs",
+    "build:api": "tsc -p api/tsconfig.json",
+    "build:web": "next build web",
+    "build": "npm run build:api && npm run build:web",
+    "start:api": "node api/dist/main.js",
+    "start:web": "next start web --port 3100 --hostname 127.0.0.1"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.0",
+    "@nestjs/core": "^11.1.0",
+    "@nestjs/jwt": "^11.0.0",
+    "@nestjs/platform-express": "^11.1.0",
+    "@nestjs/throttler": "^6.4.0",
+    "@vercel/oidc": "^4.0.0",
+    "bcryptjs": "^3.0.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "cookie-parser": "^1.4.7",
+    "firebase-admin": "14.5.0",
+    "google-auth-library": "^11.2.0",
+    "helmet": "^8.1.0",
+    "lucide-react": "^0.468.0",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,70 @@
+'use client';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCheck, CalendarDays, Clock, Scissors, Leaf, UserRound, LoaderCircle, Copy, ShieldCheck, RefreshCw } from 'lucide-react';
+import { api, indiaToday, formatDate, formatTime, money } from '../../lib/api';
+
+const steps = ['Your service', 'Your moment', 'Your details', 'Review & book'];
+export default function BookingPage() {
+  const [catalog, setCatalog] = useState(null);
+  const [step, setStep] = useState(0);
+  const [serviceId, setServiceId] = useState('');
+  const [staffId, setStaffId] = useState('');
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [customer, setCustomer] = useState({ name: '', email: '', phone: '' });
+  const [slots, setSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [slotError, setSlotError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [refreshSlots, setRefreshSlots] = useState(0);
+  const idempotency = useRef(null);
+  const service = catalog?.services.find(value => value.id === serviceId);
+  const staff = catalog?.staff.find(value => value.id === staffId);
+  const availableStaff = catalog?.staff.filter(value => !value.specialties?.length || value.specialties.includes(service?.category) || value.specialties.includes(serviceId) || value.specialties.map(v => v.toLowerCase()).includes(service?.category?.toLowerCase())) || [];
+  const loadCatalog = () => {
+    setError('');
+    api('/catalog').then(data => { setCatalog(data); const wanted = new URLSearchParams(window.location.search).get('service'); if (data.services.some(value => value.id === wanted)) setServiceId(wanted); }).catch(e => setError(e.message));
+  };
+  useEffect(() => { setDate(indiaToday()); loadCatalog(); }, []);
+  useEffect(() => { idempotency.current = null; }, [serviceId, staffId, date, time, customer]);
+  useEffect(() => {
+    if (!serviceId || !staffId || !date) return;
+    let active = true;
+    setSlotsLoading(true); setSlotError(''); setSlots([]);
+    api(`/slots?${new URLSearchParams({ serviceId, staffId, date })}`).then(data => { if (active) setSlots(data.slots); }).catch(e => { if (active) setSlotError(e.message); }).finally(() => { if (active) setSlotsLoading(false); });
+    return () => { active = false; };
+  }, [serviceId, staffId, date, refreshSlots]);
+
+  const selectService = value => { setServiceId(value); setStaffId(''); setTime(''); setError(''); };
+  const next = () => { setError(''); setStep(value => value + 1); window.scrollTo({ top: 120, behavior: 'smooth' }); };
+  const detailsSubmit = event => { event.preventDefault(); next(); };
+  const submit = async () => {
+    setSubmitting(true); setError('');
+    if (!idempotency.current) idempotency.current = crypto.randomUUID();
+    try {
+      const data = await api('/bookings', { method: 'POST', body: JSON.stringify({ serviceId, staffId, date, time, customer, idempotencyKey: idempotency.current }) });
+      setResult(data);
+      sessionStorage.setItem('eden-last-booking', JSON.stringify({ reference: data.booking.reference, token: data.manageToken }));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) { setError(e.message); if (/slot|available|conflict|booked/i.test(e.message)) setRefreshSlots(value => value + 1); }
+    finally { setSubmitting(false); }
+  };
+  const managementPath = result ? `/manage#${new URLSearchParams({ reference: result.booking.reference, token: result.manageToken })}` : '';
+  const copy = async () => { try { await navigator.clipboard.writeText(`${window.location.origin}${managementPath}`); setCopied(true); } catch { setError('Copy is unavailable. Use the private access code below to manage your booking.'); } };
+
+  if (result) return <section className="booking-success"><div className="success-symbol"><Check size={35} strokeWidth={1.3} /></div><p className="eyebrow">YOUR SAMPLE VISIT IS CONFIRMED</p><h1>A little time,<br /><em>just for you.</em></h1><p>You’re all set, {result.booking.customer.name.split(' ')[0]}.<br />Your demo appointment details are below.</p><div className="success-ticket"><div className="ticket-top"><span className="eyebrow">EDEN · SAMPLE APPOINTMENT</span><span className="status-pill confirmed">Confirmed</span></div><h3>{result.booking.serviceName}</h3><div className="ticket-grid"><span><CalendarDays size={17} /><div>{formatDate(result.booking.date)}<small>{formatTime(result.booking.time)} – {formatTime(result.booking.endTime)}</small></div></span><span><UserRound size={17} /><div>{result.booking.staffName}<small>Sample stylist</small></div></span></div><div className="ticket-bottom"><span>Booking reference<strong>{result.booking.reference}</strong></span><span>Sample total<strong>{money(result.booking.price)}</strong></span></div></div><div className="private-code"><ShieldCheck size={19} /><div><strong>Keep your private booking access</strong><p>Save this code or copy your management link to view or cancel this appointment.</p><code>{result.manageToken}</code></div></div>{error && <div className="inline-error" role="alert">{error}</div>}<div className="success-actions"><Link href={managementPath} className="button">Manage my booking<ArrowUpRight size={17} /></Link><button className="button outline" onClick={copy}>{copied ? <CheckCheck size={17} /> : <Copy size={17} />}{copied ? 'Private link copied' : 'Copy private link'}</button></div><p className="small-note">This is a portfolio demo. No real salon appointment has been made.</p></section>;
+
+  return <>
+    <section className="booking-heading"><p className="eyebrow">FIND YOUR MOMENT</p><h1>Let's make some<br /><em>time for you.</em></h1><p>A sample appointment, in a few simple steps.</p></section>
+    <section className="booking-layout"><div className="booking-main"><ol className="booking-progress">{steps.map((label, index) => <li key={label} className={step === index ? 'current' : step > index ? 'done' : ''}><span>{step > index ? <Check size={14} /> : String(index + 1).padStart(2, '0')}</span><small>{label}</small></li>)}</ol>{error && <div className="inline-error" role="alert">{error}{!catalog && <button onClick={loadCatalog}>Try again</button>}</div>}{!catalog ? <div className="state-box"><LoaderCircle className="spin" /><p>Getting everything ready…</p></div> : <>
+      {step === 0 && <div className="wizard-panel"><div className="wizard-panel-heading"><span className="eyebrow">STEP 01</span><h2>What feels right?</h2><p>Choose a service from our sample menu.</p></div><div className="booking-service-grid">{catalog.services.map(value => <button className={`booking-service ${serviceId === value.id ? 'selected' : ''}`} key={value.id} onClick={() => selectService(value.id)}><span className="service-select-top"><span className="eyebrow">{value.category}</span><span className="radio-circle">{serviceId === value.id && <Check size={12} />}</span></span><strong>{value.name}</strong><span className="service-select-meta"><span><Clock size={13} />{value.duration} min</span><span>{money(value.price)}</span></span></button>)}</div><div className="wizard-navigation"><span className="small-note">All services & prices are demo data.</span><button className="button" onClick={next} disabled={!serviceId}>Choose a moment<ArrowRight size={17} /></button></div></div>}
+      {step === 1 && <div className="wizard-panel"><div className="wizard-panel-heading"><span className="eyebrow">STEP 02</span><h2>Your day. Your time.</h2><p>Choose a sample stylist, date, and available slot.</p></div><label className="field-label">Your sample stylist</label><div className="stylist-grid">{availableStaff.map(value => <button key={value.id} className={`stylist-card ${staffId === value.id ? 'selected' : ''}`} onClick={() => { setStaffId(value.id); setTime(''); }}><span className="avatar" style={{ backgroundColor: value.color || '#dbe1d4' }}>{value.initials}</span><strong>{value.name}</strong><small>{value.role}</small><span className="radio-circle">{staffId === value.id && <Check size={12} />}</span></button>)}</div><div className="date-heading"><label className="field-label" htmlFor="visit-date">Your preferred date</label><span>India Standard Time</span></div><input id="visit-date" className="date-input" type="date" value={date} min={indiaToday()} onChange={event => { setDate(event.target.value); setTime(''); }} /><div className="slot-heading"><label className="field-label">Available moments</label>{staffId && <button className="text-link small" onClick={() => { setTime(''); setRefreshSlots(value => value + 1); }}><RefreshCw size={13} />Refresh</button>}</div>{!staffId ? <div className="slot-placeholder"><CalendarDays size={22} strokeWidth={1.2} /><p>Select a stylist to see available slots.</p></div> : slotsLoading ? <div className="slot-placeholder"><LoaderCircle className="spin" /><p>Finding your available moments…</p></div> : slotError ? <div className="inline-error" role="alert">{slotError}</div> : !slots.length ? <div className="slot-placeholder"><Clock size={22} /><p>No slots on this date. Try another day.</p></div> : <div className="slots-grid">{slots.map(slot => <button key={slot.time} className={time === slot.time ? 'selected' : ''} disabled={!slot.available} onClick={() => setTime(slot.time)} aria-label={`${formatTime(slot.time)}${!slot.available ? ', unavailable' : ''}`}>{formatTime(slot.time)}</button>)}</div>}<p className="small-note">Crossed out slots are unavailable. A 15-minute reset is reserved between visits.</p><div className="wizard-navigation"><button className="text-link" onClick={() => setStep(0)}><ArrowLeft size={16} />Back</button><button className="button" onClick={next} disabled={!staffId || !date || !time || !slots.some(slot => slot.time === time && slot.available)}>Your details<ArrowRight size={17} /></button></div></div>}
+      {step === 2 && <form className="wizard-panel" onSubmit={detailsSubmit}><div className="wizard-panel-heading"><span className="eyebrow">STEP 03</span><h2>Nice to meet you.</h2><p>Add your details for this sample appointment.</p></div><div className="form-fields"><label>Full name<input required autoComplete="name" minLength={2} maxLength={100} value={customer.name} placeholder="Your full name" onChange={event => setCustomer({ ...customer, name: event.target.value })} /></label><label>Email address<input type="email" required autoComplete="email" maxLength={254} value={customer.email} placeholder="you@example.com" onChange={event => setCustomer({ ...customer, email: event.target.value })} /></label><label>Phone number<input type="tel" required autoComplete="tel" pattern="[+0-9 ()-]{7,20}" maxLength={20} value={customer.phone} placeholder="+91 98765 43210" onChange={event => setCustomer({ ...customer, phone: event.target.value })} /></label></div><div className="privacy-note"><ShieldCheck size={18} /><p>Use sample details for this demo. No email or SMS will be sent, and the real salon will not be contacted.</p></div><div className="wizard-navigation"><button type="button" className="text-link" onClick={() => setStep(1)}><ArrowLeft size={16} />Back</button><button className="button" type="submit">Review your visit<ArrowRight size={17} /></button></div></form>}
+      {step === 3 && <div className="wizard-panel"><div className="wizard-panel-heading"><span className="eyebrow">STEP 04</span><h2>A moment to make sure.</h2><p>Everything look good? Confirm your sample visit.</p></div><div className="review-detail"><Scissors size={21} /><div><small>YOUR SERVICE</small><strong>{service.name}</strong><span>{service.duration} minutes · {money(service.price)}</span></div><button onClick={() => setStep(0)}>Edit</button></div><div className="review-detail"><CalendarDays size={21} /><div><small>YOUR MOMENT</small><strong>{formatDate(date, { year: 'numeric' })}</strong><span>{formatTime(time)} · with {staff.name}</span></div><button onClick={() => setStep(1)}>Edit</button></div><div className="review-detail"><UserRound size={21} /><div><small>YOUR DETAILS</small><strong>{customer.name}</strong><span>{customer.email}<br />{customer.phone}</span></div><button onClick={() => setStep(2)}>Edit</button></div><div className="review-total"><span>Sample total<span>No payment required for demo bookings.</span></span><strong>{money(service.price)}</strong></div><div className="privacy-note"><Leaf size={18} /><p>This creates a demo booking only. You can cancel at any time using your private management link.</p></div><div className="wizard-navigation"><button className="text-link" onClick={() => setStep(2)} disabled={submitting}><ArrowLeft size={16} />Back</button><button className="button" onClick={submit} disabled={submitting}>{submitting ? <><LoaderCircle className="spin" size={17} />Confirming…</> : <>Confirm sample visit<Check size={17} /></>}</button></div></div>}
+    </>}</div><aside className="booking-summary"><span className="eyebrow">YOUR LITTLE MOMENT</span><Leaf size={29} strokeWidth={1.2} /><h3>{service ? service.name : 'A fresh feeling awaits.'}</h3>{service ? <><p>{service.description}</p><div className="summary-line"><Clock size={16} /><span>{service.duration} minutes</span></div><div className="summary-line"><UserRound size={16} /><span>{staff?.name || 'Your stylist, next'}</span></div><div className="summary-line"><CalendarDays size={16} /><span>{date && staffId ? formatDate(date) : 'Your moment, next'}{time && <small>{formatTime(time)} · IST</small>}</span></div><div className="summary-total"><span>Sample total</span><strong>{money(service.price)}</strong></div></> : <p>Pick a service to begin. Your visit details will come together here.</p>}<div className="summary-note"><ShieldCheck size={17} /><p>Simple to book.<br />Easy to manage.</p></div><span className="demo-label">PORTFOLIO DEMO · NO REAL APPOINTMENTS</span></aside></section>
+  </>;
+}

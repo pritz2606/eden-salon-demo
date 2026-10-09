@@ -53,11 +53,19 @@ The administrator still signs in with the protected application password session
 
 Enable Firestore, Security Token Service, and IAM Service Account Credentials APIs in the dedicated Google project. Create a service account for this API and grant it `roles/datastore.user` on that project. Enable Vercel OIDC for the **backend** project; use its actual issuer mode and stable identifiers. This source exchanges the platform token for the Google provider's default audience, rather than storing a downloaded service-account key. See [Vercel's Google OIDC configuration](https://vercel.com/docs/oidc/gcp).
 
-Create a dedicated Google workload identity pool and OIDC provider. Prefer the team issuer `https://oidc.vercel.com/VERCEL_OWNER_SLUG`, matching the backend project's issuer setting. Select **Default audience** and leave custom allowed audiences empty. The audience used by this implementation is:
+Create a dedicated Google workload identity pool and OIDC provider. Prefer the team issuer `https://oidc.vercel.com/VERCEL_OWNER_SLUG`, matching the backend project's issuer setting. Select **Default audience** and leave custom allowed audiences empty. The exchanged Vercel JWT uses this audience:
 
 ```text
 https://iam.googleapis.com/projects/GCP_PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL_ID/providers/PROVIDER_ID
 ```
+
+The Google `IdentityPoolClient` separately uses the canonical resource identifier for its Security Token Service request:
+
+```text
+//iam.googleapis.com/projects/GCP_PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL_ID/providers/PROVIDER_ID
+```
+
+Keep these two representations separate. The [Google token exchange API](https://docs.cloud.google.com/iam/docs/reference/sts/rest/v1/TopLevel/token) requires the latter for the request's `audience` field.
 
 Map the claims and restrict the provider to the exact backend production identity:
 

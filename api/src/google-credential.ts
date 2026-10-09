@@ -59,11 +59,12 @@ export function vercelGoogleAuth(): IdentityPoolClient | undefined {
     throw new Error('GCP_SERVICE_ACCOUNT_EMAIL must name a service account in FIREBASE_PROJECT_ID.');
   }
 
-  // Configure the provider with Google's default audience (no custom allowed
-  // audiences). Vercel exchanges its token for this specific provider audience.
-  const audience = `https://iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
+  // STS requires a scheme-relative resource name. The subject JWT uses the
+  // HTTPS audience accepted by the provider and its exact trust condition.
+  const providerAudience = `//iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
+  const tokenAudience = `https:${providerAudience}`;
   return new IdentityPoolClient({
-    audience,
+    audience: providerAudience,
     subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
     token_url: 'https://sts.googleapis.com/v1/token',
     service_account_impersonation_url: `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${account}:generateAccessToken`,
@@ -71,7 +72,9 @@ export function vercelGoogleAuth(): IdentityPoolClient | undefined {
     subject_token_supplier: {
       getSubjectToken: () => {
         const token = requestOidcToken.getStore();
-        return token ? exchangeVercelOidcToken({ token, audience }) : getVercelOidcToken({ audience });
+        return token
+          ? exchangeVercelOidcToken({ token, audience: tokenAudience })
+          : getVercelOidcToken({ audience: tokenAudience });
       },
     },
   });

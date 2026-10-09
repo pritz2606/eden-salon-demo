@@ -11,6 +11,16 @@ Import the same sanitized Git repository twice, preserving its `api/` and `web/`
 | Backend | `api` | NestJS | `npm ci` | The NestJS preset uses `api/vercel.json`; the source also provides `npm run build` |
 | Frontend | `web` | Next.js | `npm ci` | `npm run build`, configured in `web/vercel.json` |
 
+For the CLI deployment used by this demo, link each standalone folder to its own existing Vercel project and deploy from that folder. In this arrangement, the remote project's `rootDirectory` is `null`. Repository imports use the relative roots in the table instead; do not combine a standalone-folder upload with a repository-relative root.
+
+The NestJS preset generates one function for the whole API. Configure its duration at project level, rather than mapping `src/main.ts` in `functions`. The production API uses the following project settings:
+
+```json
+{ "resourceConfig": { "fluid": true, "functionDefaultTimeout": 300 } }
+```
+
+These settings can be applied using the [project update API](https://vercel.com/docs/rest-api/projects/update-an-existing-project). The API's `vercel.json` retains the NestJS framework and Fluid Compute settings.
+
 Choose stable production domains for both projects before setting origin variables. Configure the API's `WEB_ORIGIN` with the exact HTTPS frontend origin, and configure the frontend's `EDEN_API_ORIGIN` with the API's HTTPS origin without an `/api` suffix. Multiple explicitly approved frontend origins can be comma-separated; do not use wildcards or transient preview domains.
 
 Vercel project roots and framework detection are described in [Vercel monorepo deployment](https://vercel.com/docs/monorepos) and [Vercel NestJS deployment](https://vercel.com/docs/frameworks/backend/nestjs).

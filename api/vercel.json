@@ -1,11 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nestjs",
-  "fluid": true,
-  "functions": {
-    "src/main.ts": {
-      "maxDuration": 300,
-      "supportsCancellation": true
-    }
-  }
+  "fluid": true
 }

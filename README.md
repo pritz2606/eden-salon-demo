@@ -2,6 +2,14 @@
 
 A separate full stack portfolio sample by Pritam Badagi, inspired by Eden Salon in Margao. The application is an independent concept, not Eden's official website. No sample booking reaches the real salon.
 
+## Live demo
+
+- [Open Eden Salon demo](https://eden-salon-demo.vercel.app)
+- [Administrator sign-in](https://eden-salon-demo.vercel.app/admin)
+- [Source on GitHub](https://github.com/pritz2606/eden-salon-demo)
+
+The frontend and API are separate Vercel projects, backed by Cloud Firestore. The API uses a dedicated Google service identity through restricted Workload Identity Federation. Production administrator credentials are configured privately; emulator login defaults do not apply to the hosted site. See [DEPLOYMENT.md](DEPLOYMENT.md) for configuration and redeployment details.
+
 ## Features
 
 - Six routes: Home, Services, About, Book, Manage, and Admin.
